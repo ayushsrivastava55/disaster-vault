@@ -21,7 +21,8 @@ This repository contains three deliverables:
 │   ├── EarthquakeOracle.cdc     # Mutable oracle storage updated by the off-chain worker
 │   └── DisasterActions.cdc      # Flow Actions wrappers for create / monitor / donate flows
 ├── shared/                      # Node/Next shared utilities
-│   └── vault-store.ts           # File-backed store tracking locally created vaults
+│   ├── vault-store.d.ts         # Type definitions for the shared vault helpers
+│   └── vault-store.js           # File-backed store tracking locally created vaults
 ├── data/                        # Generated at runtime (JSON store for the prototype)
 │   └── .gitkeep
 ├── oracle/                      # Node.js oracle + AI worker
@@ -68,6 +69,8 @@ pnpm dev
 
 The app listens on `http://localhost:3000` and renders live USGS earthquake data.
 Creating a vault writes to `../data/vaults.json`, which powers the donation log shown on the dashboard with your own interactions.
+Set the `DISASTER_VAULT_DATA_DIR` environment variable before starting the app if you need the prototype data to live somewhere else
+(for example during automated tests).
 
 ### 3. Start the oracle worker
 
@@ -91,6 +94,18 @@ pnpm start
 The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction. Once Flow integration is wired up it should submit `EarthquakeOracle.updateData` and trigger the scheduled donation workflow end to end.
 
 > 💡 Reset the local state at any time by deleting `data/vaults.json`.
+
+### 4. Run the shared store tests
+
+The file-backed store that powers the prototype vault workflow ships with a lightweight regression suite that exercises its
+deposit, donation, and idempotency logic without needing any third-party dependencies:
+
+```bash
+node --test tests/vault-store.test.mjs
+```
+
+The test harness automatically points the store at a temporary directory using `DISASTER_VAULT_DATA_DIR` so it never touches your
+actual `data/` folder.
 
 ---
 

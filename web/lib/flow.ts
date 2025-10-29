@@ -3,7 +3,7 @@
 import "server-only"
 
 import { RED_CROSS_ADDRESS } from "./constants"
-import { createVaultRecord, getLatestVault, type DonationRecord } from "../../shared/vault-store"
+import { createVaultRecord, getLatestVault, type DonationRecord } from "../../shared/vault-store.js"
 
 export type VaultCreationPayload = {
   threshold: number

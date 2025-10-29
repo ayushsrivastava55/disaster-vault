@@ -6,7 +6,7 @@ import { fileURLToPath } from "url"
 import { execFile } from "child_process"
 import { promisify } from "util"
 import { OpenAI } from "openai"
-import { getLatestVault } from "../../shared/vault-store"
+import { getLatestVault } from "../../shared/vault-store.js"
 
 dotenv.config()
 
