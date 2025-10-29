@@ -7,9 +7,9 @@
 }
 
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply bg-slate-950 font-sans text-slate-100 antialiased;
 }
 
 a {
-  @apply text-primary-100 hover:text-white transition;
+  @apply font-medium text-primary-100 transition hover:text-white;
 }

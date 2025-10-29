@@ -9,7 +9,7 @@ export async function DashboardOverview() {
   if (!vault) {
     return (
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="bg-black/60">
           <CardTitle>No vault found</CardTitle>
           <CardDescription>Create a vault to start automating your donations.</CardDescription>
           <p className="mt-6 text-sm text-slate-300">
@@ -17,7 +17,7 @@ export async function DashboardOverview() {
             dashboard will track balances, donation executions, and oracle updates in real time.
           </p>
         </Card>
-        <Card>
+        <Card className="bg-black/60">
           <CardTitle>Recent earthquakes</CardTitle>
           <CardDescription>Live data pulled from the USGS feed every few minutes.</CardDescription>
           <Suspense fallback={<p className="mt-6 text-sm text-slate-400">Loading events…</p>}>
@@ -26,7 +26,7 @@ export async function DashboardOverview() {
                 <li className="text-sm text-slate-400">No events recorded in the last six hours.</li>
               )}
               {earthquakes.map((event) => (
-                <li key={event.id} className="rounded-lg border border-white/10 bg-black/40 p-4">
+                <li key={event.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <p className="text-sm font-semibold text-white">Magnitude {event.magnitude.toFixed(1)}</p>
                   <p className="text-xs text-slate-300">{event.place}</p>
                   <p className="text-xs text-slate-500">{new Date(event.time).toLocaleString()}</p>
@@ -42,7 +42,7 @@ export async function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1.2fr,1fr]">
-        <Card>
+        <Card className="bg-black/60">
           <CardTitle>Vault #{vault.vaultId}</CardTitle>
           <CardDescription>Your automated disaster response vault on Flow Testnet.</CardDescription>
           <dl className="mt-6 grid grid-cols-2 gap-4 text-sm text-slate-200">
@@ -76,7 +76,7 @@ export async function DashboardOverview() {
           )}
         </Card>
 
-        <Card>
+        <Card className="bg-black/60">
           <CardTitle>Recent earthquakes</CardTitle>
           <CardDescription>Live data pulled from the USGS feed every few minutes.</CardDescription>
           <Suspense fallback={<p className="mt-6 text-sm text-slate-400">Loading events…</p>}>
@@ -85,7 +85,7 @@ export async function DashboardOverview() {
                 <li className="text-sm text-slate-400">No events recorded in the last six hours.</li>
               )}
               {earthquakes.map((event) => (
-                <li key={event.id} className="rounded-lg border border-white/10 bg-black/40 p-4">
+                <li key={event.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <p className="text-sm font-semibold text-white">Magnitude {event.magnitude.toFixed(1)}</p>
                   <p className="text-xs text-slate-300">{event.place}</p>
                   <p className="text-xs text-slate-500">{new Date(event.time).toLocaleString()}</p>
@@ -96,7 +96,7 @@ export async function DashboardOverview() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="bg-black/60">
         <CardTitle>Donation history</CardTitle>
         <CardDescription>Chronological log of automated disbursements executed by your vault.</CardDescription>
         {vault.donations.length === 0 ? (

@@ -5,7 +5,7 @@ export function Card({ children, className }: PropsWithChildren<{ className?: st
   return (
     <div
       className={clsx(
-        "rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur",
+        "rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary-600/40",
         className
       )}
     >
