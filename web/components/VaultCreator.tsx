@@ -2,11 +2,10 @@
 
 import { useTransition, useState } from "react"
 import { createVault } from "../lib/flow"
+import { RED_CROSS_ADDRESS } from "../lib/constants"
 import { Card, CardDescription, CardTitle } from "./ui/card"
 import { Loader2 } from "lucide-react"
 import { clsx } from "clsx"
-
-const RED_CROSS_ADDRESS = "0xRedCross"
 
 export function VaultCreator() {
   const [threshold, setThreshold] = useState(6)
@@ -21,7 +20,9 @@ export function VaultCreator() {
       setResult(null)
       const response = await createVault({ threshold, maxDonation, depositAmount })
       setResult(
-        `Vault #${response.vaultId} created. Scheduled monitoring: ${response.scheduled ? "enabled" : "pending"}.`
+        `Vault #${response.vaultId} created with ${depositAmount} FLOW deposited. Scheduled monitoring: ${
+          response.scheduled ? "enabled" : "pending"
+        }.`
       )
     })
   }

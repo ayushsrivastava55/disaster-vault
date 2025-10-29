@@ -2,13 +2,15 @@ import axios from "axios"
 import dotenv from "dotenv"
 import crypto from "crypto"
 import { OpenAI } from "openai"
+import { appendDonation, getLatestVault } from "../../shared/vault-store"
 
 dotenv.config()
 
 const USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openaiApiKey = process.env.OPENAI_API_KEY
+const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
 
 async function fetchEarthquakes() {
   const start = new Date(Date.now() - SIX_HOURS_MS).toISOString()
@@ -27,6 +29,11 @@ async function fetchEarthquakes() {
 }
 
 async function analyzeSeverity(magnitude: number, place: string) {
+  if (!openai) {
+    // Fall back to a deterministic rule during local development when no API key is present.
+    return magnitude >= 6
+  }
+
   const prompt = `An earthquake of magnitude ${magnitude.toFixed(1)} occurred in ${place}. ` +
     "Does this event likely require immediate humanitarian aid? Reply with a single lowercase word: yes or no."
   const completion = await openai.responses.create({
@@ -42,6 +49,29 @@ async function pushToChain(event: { id: string; mag: number; place: string }) {
   const hash = crypto.createHash("sha256").update(payload).digest("hex")
   console.info("[oracle] Update chain", { ...event, hash })
   // TODO: Integrate with Flow CLI to submit Cadence transaction calling EarthquakeOracle.updateData
+
+  const vault = await getLatestVault()
+  if (!vault) {
+    console.warn("[oracle] No vaults available; skipping donation recording")
+    return
+  }
+
+  const { donation, vault: updated } = await appendDonation(vault.id, {
+    sourceId: event.id,
+    magnitude: event.mag,
+    amount: vault.maxDonation,
+    location: event.place
+  })
+
+  if (!donation) {
+    console.info(`[oracle] Donation for event ${event.id} already recorded`)
+    return
+  }
+
+  console.info(
+    `[oracle] Recorded donation of ${donation.amount} FLOW for magnitude ${donation.magnitude.toFixed(1)} at ${donation.location}`
+  )
+  console.info(`[oracle] Vault #${updated.id} balance now ${updated.balance.toFixed(2)} FLOW`)
 }
 
 export async function monitorOnce() {

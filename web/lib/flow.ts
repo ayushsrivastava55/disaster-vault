@@ -2,6 +2,14 @@
 
 import "server-only"
 
+import { RED_CROSS_ADDRESS } from "./constants"
+import {
+  appendDonation,
+  createVaultRecord,
+  getLatestVault,
+  type DonationRecord
+} from "../../shared/vault-store"
+
 export type VaultCreationPayload = {
   threshold: number
   maxDonation: number
@@ -9,12 +17,16 @@ export type VaultCreationPayload = {
 }
 
 export async function createVault(payload: VaultCreationPayload) {
-  // Placeholder server action. In production this would execute an FCL transaction
-  // with the Cadence actions described in the PRD.
-  console.log("createVault action invoked", payload)
+  const record = await createVaultRecord({
+    threshold: payload.threshold,
+    maxDonation: payload.maxDonation,
+    depositAmount: payload.depositAmount,
+    recipient: RED_CROSS_ADDRESS
+  })
+
   return {
-    vaultId: Math.floor(Math.random() * 10000),
-    scheduled: true
+    vaultId: record.id,
+    scheduled: record.scheduled
   }
 }
 
@@ -23,28 +35,30 @@ export type VaultStatus = {
   balance: number
   threshold: number
   maxDonation: number
-  lastDonation?: {
-    magnitude: number
-    amount: number
-    location: string
-    timestamp: string
+  recipient: string
+  donations: DonationRecord[]
+}
+
+export async function getVaultStatus(): Promise<VaultStatus | null> {
+  const record = await getLatestVault()
+  if (!record) {
+    return null
+  }
+  return {
+    vaultId: record.id,
+    balance: record.balance,
+    threshold: record.threshold,
+    maxDonation: record.maxDonation,
+    recipient: record.recipient,
+    donations: record.donations
   }
 }
 
-export async function getVaultStatus(): Promise<VaultStatus> {
-  // Mocked data for dashboard prototyping.
-  return {
-    vaultId: 1,
-    balance: 420.25,
-    threshold: 6,
-    maxDonation: 100,
-    lastDonation: {
-      magnitude: 6.4,
-      amount: 100,
-      location: "Tokyo, Japan",
-      timestamp: new Date().toISOString()
-    }
-  }
+export async function recordDonation(
+  vaultId: number,
+  donation: Omit<DonationRecord, "timestamp">
+) {
+  return appendDonation(vaultId, donation)
 }
 
 export type EarthquakeEvent = {

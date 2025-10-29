@@ -20,6 +20,10 @@ This repository contains three deliverables:
 │   ├── DisasterVault.cdc        # Vault resource that stores deposits and executes donations
 │   ├── EarthquakeOracle.cdc     # Mutable oracle storage updated by the off-chain worker
 │   └── DisasterActions.cdc      # Flow Actions wrappers for create / monitor / donate flows
+├── shared/                      # Node/Next shared utilities
+│   └── vault-store.ts           # File-backed store simulating on-chain vault state
+├── data/                        # Generated at runtime (JSON store for the prototype)
+│   └── .gitkeep
 ├── oracle/                      # Node.js oracle + AI worker
 │   ├── package.json
 │   ├── tsconfig.json
@@ -63,6 +67,7 @@ pnpm dev
 ```
 
 The app listens on `http://localhost:3000` and ships with mocked data so you can explore the UX immediately.
+Creating a vault writes to `../data/vaults.json`, which also powers the donation log shown on the dashboard.
 
 ### 3. Start the oracle worker
 
@@ -79,7 +84,9 @@ cd oracle
 pnpm start
 ```
 
-The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction.
+The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction. When a qualifying event is found it also appends a donation entry to `data/vaults.json`, simulating a scheduled transaction withdrawing funds from the most recent vault.
+
+> 💡 Reset the local state at any time by deleting `data/vaults.json`.
 
 ---
 

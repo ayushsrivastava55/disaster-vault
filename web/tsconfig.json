@@ -16,6 +16,6 @@
     "types": ["node"],
     "incremental": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.cjs", "**/*.mjs"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.cjs", "**/*.mjs", "../shared/**/*.ts"],
   "exclude": ["node_modules"]
 }
