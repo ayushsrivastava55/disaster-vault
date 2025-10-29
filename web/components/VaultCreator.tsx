@@ -4,8 +4,8 @@ import { useTransition, useState } from "react"
 import { createVault } from "../lib/flow"
 import { RED_CROSS_ADDRESS } from "../lib/constants"
 import { Card, CardDescription, CardTitle } from "./ui/card"
-import { Loader2 } from "lucide-react"
-import { clsx } from "clsx"
+import { Spinner } from "./ui/spinner"
+import { cn } from "../lib/cn"
 
 export function VaultCreator() {
   const [threshold, setThreshold] = useState(6)
@@ -100,14 +100,14 @@ export function VaultCreator() {
         <button
           type="submit"
           disabled={isPending}
-          className={clsx(
+          className={cn(
             "flex w-full items-center justify-center gap-2 rounded-full bg-primary-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-900",
             isPending && "opacity-80"
           )}
         >
           {isPending ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner />
               Creating vault…
             </>
           ) : (

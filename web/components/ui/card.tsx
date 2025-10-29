@@ -1,10 +1,10 @@
 import { type PropsWithChildren } from "react"
-import { clsx } from "clsx"
+import { cn } from "../../lib/cn"
 
 export function Card({ children, className }: PropsWithChildren<{ className?: string }>) {
   return (
     <div
-      className={clsx(
+      className={cn(
         "rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/30 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary-600/40",
         className
       )}

@@ -96,8 +96,6 @@ async function pushToChain(event: { id: string; mag: number; place: string }) {
   const payload = `${event.id}:${event.mag}:${event.place}`
   const hash = crypto.createHash("sha256").update(payload).digest("hex")
   console.info("[oracle] Update chain", { ...event, hash })
-  // TODO: Integrate with Flow CLI to submit Cadence transaction calling EarthquakeOracle.updateData
-
   const vault = await getLatestVault()
   if (!vault) {
     console.warn("[oracle] No vaults available; waiting for a vault before executing donations")
