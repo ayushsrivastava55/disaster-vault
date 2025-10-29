@@ -8,7 +8,7 @@ This repository contains three deliverables:
 - **Next.js dashboard** for creating a vault and visualising recent events.
 - **Node.js oracle worker** that polls the USGS feed, performs a lightweight AI severity check, and prepares on-chain updates.
 
-> ⚠️ Everything here targets Flow **testnet** and focuses on demonstrating architecture during a 48-hour sprint. The on-chain calls inside the UI/oracle are mocked so that the project runs locally without Flow credentials. Replace the placeholders with real FCL/Flow CLI integrations before deploying.
+> ⚠️ Everything here targets Flow **testnet** and focuses on demonstrating architecture during a 48-hour sprint. The UI and oracle consume live USGS earthquake data and persist only the vaults you create locally. Wire up the Flow contracts before deploying to a shared environment.
 
 ---
 
@@ -21,7 +21,7 @@ This repository contains three deliverables:
 │   ├── EarthquakeOracle.cdc     # Mutable oracle storage updated by the off-chain worker
 │   └── DisasterActions.cdc      # Flow Actions wrappers for create / monitor / donate flows
 ├── shared/                      # Node/Next shared utilities
-│   └── vault-store.ts           # File-backed store simulating on-chain vault state
+│   └── vault-store.ts           # File-backed store tracking locally created vaults
 ├── data/                        # Generated at runtime (JSON store for the prototype)
 │   └── .gitkeep
 ├── oracle/                      # Node.js oracle + AI worker
@@ -32,7 +32,7 @@ This repository contains three deliverables:
 │   ├── app/
 │   │   ├── page.tsx             # Landing page with vault creation CTA
 │   │   ├── create/page.tsx      # Dedicated create flow
-│   │   └── dashboard/page.tsx   # Vault dashboard fetching mocked status + live USGS data
+│   │   └── dashboard/page.tsx   # Vault dashboard fetching live vault + USGS data
 │   ├── components/              # Shared UI components
 │   ├── lib/flow.ts              # Placeholder Flow helpers + USGS fetcher
 │   └── styles/globals.css       # Tailwind base styles
@@ -47,7 +47,7 @@ This repository contains three deliverables:
 
 - Node.js 20+
 - pnpm, npm, or yarn (examples below use `pnpm`)
-- Flow CLI for real blockchain testing (optional for the mocked demo)
+- Flow CLI for real blockchain testing (optional for the local demo)
 
 ### 1. Install dependencies
 
@@ -66,8 +66,8 @@ cd web
 pnpm dev
 ```
 
-The app listens on `http://localhost:3000` and ships with mocked data so you can explore the UX immediately.
-Creating a vault writes to `../data/vaults.json`, which also powers the donation log shown on the dashboard.
+The app listens on `http://localhost:3000` and renders live USGS earthquake data.
+Creating a vault writes to `../data/vaults.json`, which powers the donation log shown on the dashboard with your own interactions.
 
 ### 3. Start the oracle worker
 
@@ -84,7 +84,7 @@ cd oracle
 pnpm start
 ```
 
-The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction. When a qualifying event is found it also appends a donation entry to `data/vaults.json`, simulating a scheduled transaction withdrawing funds from the most recent vault.
+The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction. Once Flow integration is wired up it should submit `EarthquakeOracle.updateData` and trigger the scheduled donation workflow end to end.
 
 > 💡 Reset the local state at any time by deleting `data/vaults.json`.
 
@@ -100,7 +100,7 @@ The contracts are intentionally lightweight to highlight the workflow described 
 
 To hook the UI and oracle into Flow:
 
-- Replace the mocked `createVault` / `getVaultStatus` functions in `web/lib/flow.ts` with FCL transactions and scripts.
+- Replace the placeholder `createVault` / `getVaultStatus` functions in `web/lib/flow.ts` with FCL transactions and scripts.
 - Expand `oracle/src/index.ts` to sign and submit `EarthquakeOracle.updateData` transactions (e.g., using the Flow CLI service account or a custodial key).
 - Configure a scheduled transaction on Flow testnet that runs `MonitorDisastersAction` every six hours, calling into the vault contract to execute `autoDonate` when thresholds are met.
 

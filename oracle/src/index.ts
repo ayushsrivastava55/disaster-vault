@@ -2,7 +2,7 @@ import axios from "axios"
 import dotenv from "dotenv"
 import crypto from "crypto"
 import { OpenAI } from "openai"
-import { appendDonation, getLatestVault } from "../../shared/vault-store"
+import { getLatestVault } from "../../shared/vault-store"
 
 dotenv.config()
 
@@ -52,26 +52,13 @@ async function pushToChain(event: { id: string; mag: number; place: string }) {
 
   const vault = await getLatestVault()
   if (!vault) {
-    console.warn("[oracle] No vaults available; skipping donation recording")
-    return
-  }
-
-  const { donation, vault: updated } = await appendDonation(vault.id, {
-    sourceId: event.id,
-    magnitude: event.mag,
-    amount: vault.maxDonation,
-    location: event.place
-  })
-
-  if (!donation) {
-    console.info(`[oracle] Donation for event ${event.id} already recorded`)
+    console.warn("[oracle] No vaults available; waiting for a vault before executing donations")
     return
   }
 
   console.info(
-    `[oracle] Recorded donation of ${donation.amount} FLOW for magnitude ${donation.magnitude.toFixed(1)} at ${donation.location}`
+    `[oracle] Ready to execute donation of up to ${vault.maxDonation.toFixed(2)} FLOW for magnitude ${event.mag.toFixed(1)} at ${event.place}`
   )
-  console.info(`[oracle] Vault #${updated.id} balance now ${updated.balance.toFixed(2)} FLOW`)
 }
 
 export async function monitorOnce() {

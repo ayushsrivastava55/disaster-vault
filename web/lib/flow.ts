@@ -3,12 +3,7 @@
 import "server-only"
 
 import { RED_CROSS_ADDRESS } from "./constants"
-import {
-  appendDonation,
-  createVaultRecord,
-  getLatestVault,
-  type DonationRecord
-} from "../../shared/vault-store"
+import { createVaultRecord, getLatestVault, type DonationRecord } from "../../shared/vault-store"
 
 export type VaultCreationPayload = {
   threshold: number
@@ -54,13 +49,6 @@ export async function getVaultStatus(): Promise<VaultStatus | null> {
   }
 }
 
-export async function recordDonation(
-  vaultId: number,
-  donation: Omit<DonationRecord, "timestamp">
-) {
-  return appendDonation(vaultId, donation)
-}
-
 export type EarthquakeEvent = {
   id: string
   magnitude: number
@@ -76,7 +64,7 @@ export async function fetchRecentEarthquakes(): Promise<EarthquakeEvent[]> {
   url.searchParams.set("format", "geojson")
   url.searchParams.set("orderby", "time")
   url.searchParams.set("starttime", since)
-  url.searchParams.set("minmagnitude", "5")
+  url.searchParams.set("minmagnitude", "6")
 
   const response = await fetch(url, { next: { revalidate: 60 } })
   if (!response.ok) {
