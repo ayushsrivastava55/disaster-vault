@@ -1,6 +1,10 @@
 import axios from "axios"
 import dotenv from "dotenv"
 import crypto from "crypto"
+import path from "path"
+import { fileURLToPath } from "url"
+import { execFile } from "child_process"
+import { promisify } from "util"
 import { OpenAI } from "openai"
 import { getLatestVault } from "../../shared/vault-store"
 
@@ -8,6 +12,9 @@ dotenv.config()
 
 const USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
+const execFileAsync = promisify(execFile)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.join(__dirname, "..", "..")
 
 const openaiApiKey = process.env.OPENAI_API_KEY
 const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
@@ -44,6 +51,47 @@ async function analyzeSeverity(magnitude: number, place: string) {
   return text.startsWith("y")
 }
 
+async function submitOnChainUpdate(event: { mag: number; place: string }, hash: string) {
+  if (process.env.FLOW_SEND_UPDATES !== "true") {
+    return
+  }
+
+  const network = process.env.FLOW_NETWORK ?? "testnet"
+  const signer = process.env.FLOW_ORACLE_SIGNER ?? "oracle-account"
+  const magnitudeArg = `UFix64:${event.mag.toFixed(1)}`
+  const safePlace = event.place.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+  const locationArg = `String:\"${safePlace}\"`
+  const hashArg = `String:${hash}`
+
+  const args = [
+    "transactions",
+    "send",
+    "cadence/transactions/update_oracle.cdc",
+    "--network",
+    network,
+    "--signer",
+    signer,
+    "--arg",
+    magnitudeArg,
+    "--arg",
+    locationArg,
+    "--arg",
+    hashArg
+  ]
+
+  try {
+    const { stdout, stderr } = await execFileAsync("flow", args, { cwd: repoRoot })
+    if (stdout.trim().length > 0) {
+      console.info("[oracle] Flow CLI", stdout.trim())
+    }
+    if (stderr.trim().length > 0) {
+      console.warn("[oracle] Flow CLI stderr", stderr.trim())
+    }
+  } catch (error) {
+    console.error("[oracle] Failed to submit Flow transaction", error)
+  }
+}
+
 async function pushToChain(event: { id: string; mag: number; place: string }) {
   const payload = `${event.id}:${event.mag}:${event.place}`
   const hash = crypto.createHash("sha256").update(payload).digest("hex")
@@ -59,6 +107,8 @@ async function pushToChain(event: { id: string; mag: number; place: string }) {
   console.info(
     `[oracle] Ready to execute donation of up to ${vault.maxDonation.toFixed(2)} FLOW for magnitude ${event.mag.toFixed(1)} at ${event.place}`
   )
+
+  await submitOnChainUpdate({ mag: event.mag, place: event.place }, hash)
 }
 
 export async function monitorOnce() {

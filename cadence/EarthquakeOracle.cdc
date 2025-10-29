@@ -15,47 +15,34 @@ pub contract EarthquakeOracle {
         }
     }
 
-    pub resource interface Updater {
-        pub fun updateData(magnitude: UFix64, location: String, dataHash: String)
-    }
-
-    pub resource OracleUpdater: Updater {
-        pub fun updateData(magnitude: UFix64, location: String, dataHash: String) {
-            EarthquakeOracle.latest = LatestData(
-                magnitude: magnitude,
-                location: location,
-                timestamp: getCurrentBlock().timestamp,
-                dataHash: dataHash
-            )
-            emit DataUpdated(magnitude: magnitude, location: location, timestamp: getCurrentBlock().timestamp)
-        }
-    }
-
     access(self) var authorizedUpdater: Address?
     pub var latest: LatestData?
 
-    pub fun setAuthorizedUpdater(account: Address) {
+    pub fun registerUpdater(account: Address) {
         pre {
-            self.authorizedUpdater == nil || self.authorizedUpdater == account: "Updater already set"
+            self.authorizedUpdater == nil || self.authorizedUpdater == account: "Updater already registered"
         }
         self.authorizedUpdater = account
     }
 
-    pub fun createUpdater(): @OracleUpdater {
+    pub fun updateData(magnitude: UFix64, location: String, dataHash: String, signer: Address) {
         pre {
-            self.authorizedUpdater == nil || self.authorizedUpdater == self.account.address: "Only contract account can create updater"
+            self.authorizedUpdater != nil: "No updater registered"
+            self.authorizedUpdater == signer: "Unauthorized updater"
         }
-        return <- create OracleUpdater()
+
+        let timestamp = getCurrentBlock().timestamp
+        self.latest = LatestData(
+            magnitude: magnitude,
+            location: location,
+            timestamp: timestamp,
+            dataHash: dataHash
+        )
+        emit DataUpdated(magnitude: magnitude, location: location, timestamp: timestamp)
     }
 
     pub fun getLatest(): LatestData? {
         return self.latest
-    }
-
-    pub fun getEligibleVaults(magnitude: UFix64): [UInt64] {
-        // Placeholder helper so actions can iterate over vault ids.
-        // In a production deployment, this would reference state stored elsewhere.
-        return []
     }
 
     init() {

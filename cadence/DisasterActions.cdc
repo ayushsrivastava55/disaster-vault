@@ -27,7 +27,8 @@ pub contract DisasterActions {
             }
 
             let data = oracleData!
-            for vaultId in EarthquakeOracle.getEligibleVaults(magnitude: data.magnitude) {
+            let eligibleVaults = DisasterVault.getEligibleVaults(magnitude: data.magnitude)
+            for vaultId in eligibleVaults {
                 let didDonate = DisasterVault.triggerDonation(vaultId: vaultId, magnitude: data.magnitude)
                 results[vaultId] = didDonate
             }
