@@ -1,5 +1,5 @@
-import DisasterVault from 0xDisasterVault
+import DisasterVault from 0xcb6448da23dc7fa5
 
-pub fun main(magnitude: UFix64): [UInt64] {
+access(all) fun main(magnitude: UFix64): [UInt64] {
     return DisasterVault.getEligibleVaults(magnitude: magnitude)
 }

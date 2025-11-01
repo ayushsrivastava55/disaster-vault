@@ -1,4 +1,4 @@
-import { fetchRecentEarthquakes } from "../lib/flow"
+import { fetchRecentEarthquakes } from "../lib/server-data"
 import { Card, CardDescription, CardTitle } from "./ui/card"
 
 export async function HeroStats() {

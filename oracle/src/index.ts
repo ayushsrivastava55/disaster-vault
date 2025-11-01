@@ -43,11 +43,12 @@ async function analyzeSeverity(magnitude: number, place: string) {
 
   const prompt = `An earthquake of magnitude ${magnitude.toFixed(1)} occurred in ${place}. ` +
     "Does this event likely require immediate humanitarian aid? Reply with a single lowercase word: yes or no."
-  const completion = await openai.responses.create({
-    model: "gpt-4.1-mini",
-    input: prompt
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 10
   })
-  const text = completion.output_text.trim().toLowerCase()
+  const text = completion.choices[0]?.message?.content?.trim().toLowerCase() ?? "no"
   return text.startsWith("y")
 }
 

@@ -25,3 +25,13 @@ out/
 
 # Flow CLI
 flow.lock
+
+# SECURITY: Never commit private keys!
+flow.json
+
+# Data files
+data/
+*.json.backup
+
+# Generated files
+DEPLOYMENT_SUCCESS.md

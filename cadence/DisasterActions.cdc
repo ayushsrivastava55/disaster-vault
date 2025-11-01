@@ -1,11 +1,11 @@
-import DisasterVault from 0xDisasterVault
-import EarthquakeOracle from 0xEarthquakeOracle
+import DisasterVault from 0xcb6448da23dc7fa5
+import EarthquakeOracle from 0xcb6448da23dc7fa5
 
-pub contract DisasterActions {
-    pub struct CreateVaultAction {
-        pub let threshold: UFix64
-        pub let maxDonation: UFix64
-        pub let recipient: Address
+access(all) contract DisasterActions {
+    access(all) struct CreateVaultAction {
+        access(all) let threshold: UFix64
+        access(all) let maxDonation: UFix64
+        access(all) let recipient: Address
 
         init(threshold: UFix64, maxDonation: UFix64, recipient: Address) {
             self.threshold = threshold
@@ -13,13 +13,13 @@ pub contract DisasterActions {
             self.recipient = recipient
         }
 
-        pub fun execute(owner: Address): UInt64 {
+        access(all) fun run(owner: Address): UInt64 {
             return DisasterVault.createVault(owner: owner, threshold: self.threshold, maxDonation: self.maxDonation, recipient: self.recipient)
         }
     }
 
-    pub struct MonitorDisastersAction {
-        pub fun execute(): {UInt64: Bool} {
+    access(all) struct MonitorDisastersAction {
+        access(all) fun run(): {UInt64: Bool} {
             let results: {UInt64: Bool} = {}
             let oracleData = EarthquakeOracle.getLatest()
             if oracleData == nil {
@@ -36,16 +36,16 @@ pub contract DisasterActions {
         }
     }
 
-    pub struct AutoDonateAction {
-        pub let vaultId: UInt64
-        pub let magnitude: UFix64
+    access(all) struct AutoDonateAction {
+        access(all) let vaultId: UInt64
+        access(all) let magnitude: UFix64
 
         init(vaultId: UInt64, magnitude: UFix64) {
             self.vaultId = vaultId
             self.magnitude = magnitude
         }
 
-        pub fun execute(): Bool {
+        access(all) fun run(): Bool {
             return DisasterVault.triggerDonation(vaultId: self.vaultId, magnitude: self.magnitude)
         }
     }

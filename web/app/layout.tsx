@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Inter } from "next/font/google"
 import { ReactNode } from "react"
+import { WalletConnect } from "../components/WalletConnect"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -30,6 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <a href="https://developers.flow.com/" target="_blank" rel="noreferrer" className="hover:text-white">
               Flow docs
             </a>
+            <div className="ml-4">
+              <WalletConnect />
+            </div>
           </nav>
         </header>
         <main className="mx-auto w-full max-w-6xl px-6 pb-24">{children}</main>
