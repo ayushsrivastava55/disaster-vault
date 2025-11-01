@@ -1,425 +1,220 @@
 # DisasterVault 🚨
 
-**Automated Disaster Relief using Flow Blockchain's Scheduled Transactions and AI**
+Prototype implementation of the Forte Hacks 2025 concept: an automated Flow vault that reacts to USGS earthquake data, verifies events with GPT-4, and routes donations to the Red Cross via scheduled transactions.
 
-Built for **Forte Hacks 2025** - Flow Blockchain Hackathon
+This repository contains three deliverables:
 
----
+- **Cadence contracts** implementing the vault, oracle, and Flow Actions glue code.
+- **Next.js dashboard** for creating a vault and visualising recent events.
+- **Node.js oracle worker** that polls the USGS feed, performs a lightweight AI severity check, and prepares on-chain updates.
 
-## 🎯 Problem
-
-Disasters kill 60,000+ people annually. By the time people hear about disasters and decide to donate, critical hours are lost. Traditional disaster relief is reactive—people must manually monitor news, decide to donate, and complete payment flows. This delay costs lives.
-
-## 💡 Solution
-
-**DisasterVault** automates disaster relief donations using Flow blockchain's cutting-edge **Forte upgrade features**:
-
-- **Set it once, help forever:** Users deposit funds and set earthquake magnitude thresholds
-- **Automated monitoring:** Oracle checks USGS earthquake data every 6 hours via Scheduled Transactions
-- **AI verification:** GPT-4 analyzes severity based on magnitude, location, and population
-- **Instant donations:** When conditions are met, smart contracts auto-execute donations
-
-**No servers. No keepers. Fully on-chain automation.**
+> ⚠️ Everything here targets Flow **testnet** and focuses on demonstrating architecture during a 48-hour sprint. The UI and oracle consume live USGS earthquake data and persist only the vaults you create locally. Wire up the Flow contracts before deploying to a shared environment.
 
 ---
 
-## 🏗️ Architecture
+## Project layout
 
 ```
-┌─────────────────┐
-│   Next.js UI    │ ← User creates vault, sets threshold
-│  (React + FCL)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────────┐
-│       Flow Blockchain (Testnet)         │
-│                                         │
-│  ┌──────────────┐   ┌───────────────┐ │
-│  │ Vault.cdc    │   │ Actions.cdc   │ │
-│  │ (holds FLOW) │   │ (3 Actions)   │ │
-│  └──────────────┘   └───────────────┘ │
-│                                         │
-│  ┌─────────────────────────────────┐  │
-│  │  Scheduled Transaction          │  │
-│  │  (runs every 6 hours)           │  │
-│  │  ├─> Check Oracle               │  │
-│  │  ├─> If magnitude >= 6.0        │  │
-│  │  └─> Execute auto_donate()      │  │
-│  └─────────────────────────────────┘  │
-└───────────┬─────────────────────────────┘
-            │
-            ▼
-┌──────────────────────────────┐
-│   Oracle Service (Node.js)   │
-│   ├─> Fetch USGS API         │
-│   ├─> AI Severity Check      │
-│   └─> Update on-chain data   │
-└──────────────────────────────┘
+.
+├── cadence/                     # Cadence smart contracts
+│   ├── DisasterVault.cdc        # Vault resource that stores deposits and executes donations
+│   ├── EarthquakeOracle.cdc     # Mutable oracle storage updated by the off-chain worker
+│   └── DisasterActions.cdc      # Flow Actions wrappers for create / monitor / donate flows
+├── shared/                      # Node/Next shared utilities
+│   ├── vault-store.d.ts         # Type definitions for the shared vault helpers
+│   └── vault-store.js           # File-backed store tracking locally created vaults
+├── data/                        # Generated at runtime (JSON store for the prototype)
+│   └── .gitkeep
+├── oracle/                      # Node.js oracle + AI worker
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/index.ts             # Polls USGS, calls GPT-4, (todo) pushes updates on-chain
+├── web/                         # Next.js 14 application (App Router + Tailwind)
+│   ├── app/
+│   │   ├── page.tsx             # Landing page with vault creation CTA
+│   │   ├── create/page.tsx      # Dedicated create flow
+│   │   └── dashboard/page.tsx   # Vault dashboard fetching live vault + USGS data
+│   ├── components/              # Shared UI components
+│   ├── lib/flow.ts              # Placeholder Flow helpers + USGS fetcher
+│   └── styles/globals.css       # Tailwind base styles
+└── README.md
 ```
 
 ---
 
-## ✨ Flow Integration
+## Getting started
 
-### **Flow Actions (FLIP-338)**
+### Prerequisites
 
-We implement **3 standardized, composable Flow Actions**:
+- Node.js 20+
+- pnpm, npm, or yarn (examples below use `pnpm`)
+- Flow CLI for real blockchain testing (optional for the local demo)
 
-#### 1. **CreateVaultAction**
-```cadence
-// Standardized vault creation
-access(all) struct CreateVaultAction {
-    access(all) let threshold: UFix64
-    access(all) let maxDonation: UFix64
-    access(all) let recipient: Address
-    
-    access(all) fun run(vaultOwner: Address): @DisasterVault.Vault
-    access(all) fun getMetadata(): {String: AnyStruct}
-}
-```
-
-**Metadata for Discovery:**
-- Inputs: threshold (5.0-9.0), maxDonation, recipient address
-- Outputs: Vault resource
-- Safety: Creates vault in user's storage; requires balance
-
-#### 2. **MonitorDisastersAction**
-```cadence
-// Checks oracle and triggers eligible vaults
-access(all) struct MonitorDisastersAction {
-    access(all) fun run(): [UInt64]
-    access(all) fun getEarthquakeStatus(): {String: AnyStruct}
-}
-```
-
-**Metadata for Discovery:**
-- Inputs: None (reads from EarthquakeOracle)
-- Outputs: Array of triggered vault IDs
-- Trigger: Scheduled transaction every 6 hours
-- Safety: Read-only oracle check
-
-#### 3. **AutoDonateAction**
-```cadence
-// Execute donation when conditions met
-access(all) struct AutoDonateAction {
-    access(all) let vaultId: UInt64
-    access(all) let earthquakeMagnitude: UFix64
-    
-    access(all) fun run(): Bool
-    access(all) fun validateConditions(...): Bool
-}
-```
-
-**Metadata for Discovery:**
-- Inputs: vaultId, earthquakeMagnitude
-- Outputs: Boolean success
-- Safety: Validates threshold and balance; emits events
-
----
-
-### **Scheduled Transactions (FLIP-262)**
-
-```cadence
-// Runs every 6 hours automatically
-transaction {
-    prepare(signer: auth(Storage) &Account) {
-        // Run monitoring action
-        let monitorAction = DisasterActions.MonitorDisastersAction()
-        let triggeredVaults = monitorAction.run()
-        
-        // Get earthquake status from oracle
-        let status = monitorAction.getEarthquakeStatus()
-        
-        // In production: iterate through triggered vaults
-        // and call TriggerDonation for each
-    }
-}
-```
-
-**Scheduled via Flow CLI:**
-```bash
-flow transactions send cadence/transactions/ScheduledMonitoring.cdc \
-  --schedule-interval 21600 \
-  --network testnet
-```
-
----
-
-## 🧩 Smart Contracts
-
-### **1. DisasterVault.cdc**
-Core vault contract managing user funds and auto-donation logic.
-
-**Key Features:**
-- Resource-oriented vault (can't be duplicated or lost)
-- Configurable magnitude thresholds (5.0-9.0)
-- Auto-donation when threshold met
-- Event emissions for transparency
-- Vault deactivation controls
-
-**Storage Paths:**
-- Storage: `/storage/DisasterVault`
-- Public: `/public/DisasterVault`
-
-### **2. EarthquakeOracle.cdc**
-On-chain storage for USGS earthquake data.
-
-**Key Features:**
-- Latest earthquake magnitude and location
-- History of recent 10 earthquakes
-- Data hash for verification
-- Update count tracking
-- Oracle address authorization
-
-### **3. DisasterActions.cdc**
-Standardized action protocols for composability.
-
-**Key Features:**
-- 3 Flow Actions with full metadata
-- Action discovery helpers
-- Condition validation
-- Event emissions for tracking
-
----
-
-## 📚 Tech Stack
-
-```
-Frontend:  Next.js 14 + TypeScript + Tailwind + shadcn/ui
-Backend:   Node.js (Oracle service)
-Blockchain: Flow Testnet (Cadence smart contracts)
-Auth:      Privy (wallet connection)
-AI:        Vercel AI SDK + OpenAI GPT-4
-APIs:      USGS Earthquake API
-Testing:   Flow CLI Test Framework
-```
-
----
-
-## 🚀 Quick Start
-
-### **Prerequisites**
-- Node.js 18+
-- Flow CLI v2.7.3+
-- Git
-
-### **1. Clone and Install**
-```bash
-cd forte
-flow emulator start  # In one terminal
-```
-
-### **2. Deploy Contracts**
-```bash
-flow project deploy  # Deploys to emulator
-```
-
-### **3. Test Scripts**
-```bash
-# Get latest earthquake data
-flow scripts execute cadence/scripts/GetLatestEarthquake.cdc
-
-# Get Flow Actions metadata
-flow scripts execute cadence/scripts/GetActionsMetadata.cdc
-
-# Get recent earthquake history
-flow scripts execute cadence/scripts/GetRecentEarthquakes.cdc
-```
-
-### **4. Run Tests**
-```bash
-flow test
-```
-
-**Expected Output:**
-```
-Test results: "cadence/tests/DisasterVault_test.cdc"
-- PASS: testContractDeployment
-- PASS: testOracleUpdate
-- PASS: testActionsMetadata
-```
-
----
-
-## 📝 Example Transactions
-
-### **Create a Vault**
-```bash
-flow transactions send cadence/transactions/CreateVault.cdc \
-  6.5 \           # threshold
-  100.0 \         # maxDonation
-  0xf8d6e0586b0a20c7 \  # recipient
-  500.0           # initialDeposit
-```
-
-### **Update Oracle Data**
-```bash
-flow transactions send cadence/transactions/UpdateOracleData.cdc \
-  7.2 \                    # magnitude
-  "Tokyo, Japan" \         # location
-  "abc123xyz"              # dataHash
-```
-
-### **Trigger Donation**
-```bash
-flow transactions send cadence/transactions/TriggerDonation.cdc
-```
-
----
-
-## 📊 Deployed Contracts (Emulator)
-
-| Contract | Address | Hash | Status |
-|----------|---------|------|--------|
-| DisasterVault | `0xf8d6e0586b0a20c7` | `20e596ef...` | ✅ Deployed |
-| EarthquakeOracle | `0xf8d6e0586b0a20c7` | `6c828234...` | ✅ Deployed |
-| DisasterActions | `0xf8d6e0586b0a20c7` | `f03e423d...` | ✅ Deployed |
-
----
-
-## 🎯 Bounties Targeted
-
-### **1. Best Use of Flow Forte Actions and Workflows** ($12,000)
-✅ **Qualifications:**
-- 3 custom Flow Actions implemented
-- Actions with rich discovery metadata
-- Scheduled Transactions for monitoring
-- Standardized, composable protocols
-- Perfect showcase of Forte features
-
-### **2. Best Killer App on Flow** ($16,000)
-✅ **Qualifications:**
-- Consumer-focused (anyone can use)
-- Real-world utility (disaster relief)
-- Viral potential (automated giving)
-- Solves actual problem
-
-### **3. Best Fresh Code** ($12,000)
-✅ **Qualifications:**
-- Built from scratch during hackathon
-- All code original and documented
-
----
-
-## 🔬 Technical Highlights
-
-### **Resource-Oriented Programming**
-Cadence's resource model ensures vaults:
-- Cannot be duplicated
-- Cannot be lost
-- Have clear ownership
-- Are composable with capabilities
-
-### **Atomic Execution**
-All Actions execute atomically:
-- Check threshold → Transfer funds → Emit events
-- No intermediate failures
-- No partial executions
-
-### **On-Chain Automation**
-Scheduled Transactions eliminate:
-- Centralized keepers
-- Offchain cron jobs
-- Single points of failure
-- MEV risks
-
-### **Action Discoverability**
-Metadata enables:
-- Automated UI generation
-- Action composition tools
-- Safe workflow building
-- Clear documentation
-
----
-
-## 📁 Project Structure
-
-```
-forte/
-├── cadence/
-│   ├── contracts/
-│   │   ├── DisasterVault.cdc        # Core vault logic
-│   │   ├── EarthquakeOracle.cdc     # Oracle data storage
-│   │   └── DisasterActions.cdc      # Flow Actions
-│   ├── scripts/
-│   │   ├── GetLatestEarthquake.cdc  # Query oracle
-│   │   ├── GetRecentEarthquakes.cdc # Query history
-│   │   └── GetActionsMetadata.cdc   # Query actions
-│   ├── transactions/
-│   │   ├── CreateVault.cdc          # Create vault
-│   │   ├── UpdateOracleData.cdc     # Update oracle
-│   │   ├── TriggerDonation.cdc      # Manual trigger
-│   │   └── ScheduledMonitoring.cdc  # Scheduled txn
-│   └── tests/
-│       └── DisasterVault_test.cdc   # Unit tests
-├── flow.json                        # Flow config
-├── PRD.md                          # Product requirements
-├── PROGRESS.md                     # Build progress
-└── README.md                       # This file
-```
-
----
-
-## 🧪 Testing
-
-All contracts have comprehensive test coverage:
+### 1. Install dependencies
 
 ```bash
-flow test
+cd web
+pnpm install
+
+cd ../oracle
+pnpm install
 ```
 
-**Test Coverage:**
-- ✅ Contract deployment
-- ✅ Oracle data updates
-- ✅ Actions metadata
-- ✅ Vault creation
-- ✅ Donation triggers
+### 2. Run the Next.js dashboard
+
+```bash
+cd web
+pnpm dev
+```
+
+The app listens on `http://localhost:3000` and renders live USGS earthquake data.
+Creating a vault writes to `../data/vaults.json`, which powers the donation log shown on the dashboard with your own interactions.
+Set the `DISASTER_VAULT_DATA_DIR` environment variable before starting the app if you need the prototype data to live somewhere else
+(for example during automated tests).
+
+### 3. Start the oracle worker
+
+Create an `.env` file in `oracle/` with your OpenAI API key and optional Flow CLI settings:
+
+```
+OPENAI_API_KEY=sk-...
+# Uncomment to have the worker call the Flow CLI automatically
+# FLOW_SEND_UPDATES=true
+# FLOW_NETWORK=testnet
+# FLOW_ORACLE_SIGNER=oracle-account
+```
+
+Then run:
+
+```bash
+cd oracle
+pnpm start
+```
+
+The worker polls the USGS API every six hours (kick-started once on boot) and logs the payload that would be submitted to the on-chain oracle update transaction. Once Flow integration is wired up it should submit `EarthquakeOracle.updateData` and trigger the scheduled donation workflow end to end.
+
+> 💡 Reset the local state at any time by deleting `data/vaults.json`.
+
+### 4. Run the shared store tests
+
+The file-backed store that powers the prototype vault workflow ships with a lightweight regression suite that exercises its
+deposit, donation, and idempotency logic without needing any third-party dependencies:
+
+```bash
+node --test tests/vault-store.test.mjs
+```
+
+The test harness automatically points the store at a temporary directory using `DISASTER_VAULT_DATA_DIR` so it never touches your
+actual `data/` folder.
 
 ---
 
-## 🔗 Resources
+## Deploying the Cadence contracts
 
-### **Flow Documentation**
-- [Flow Developer Portal](https://developers.flow.com/)
-- [Cadence Language](https://cadence-lang.org/)
-- [Flow Actions (FLIP-338)](https://github.com/onflow/flips/blob/main/application/20240903-standardized-actions.md)
-- [Scheduled Transactions (FLIP-262)](https://github.com/onflow/flips/blob/main/application/20240612-scheduled-transactions.md)
+The repository ships with a `flow.json` configuration so you can bootstrap the contracts on the emulator or Flow testnet without editing the Cadence sources.
 
-### **Tools**
-- [Flow CLI](https://developers.flow.com/tools/flow-cli/install)
-- [Flow Testnet Faucet](https://testnet-faucet.onflow.org/)
-- [Flowscan Explorer](https://testnet.flowscan.io/)
-- [Flow Emulator](https://developers.flow.com/tools/emulator)
+1. Install the Flow CLI and authenticate:
 
-### **APIs**
-- [USGS Earthquake API](https://earthquake.usgs.gov/fdsnws/event/1/)
-- [OpenAI API](https://platform.openai.com/docs)
-- [Vercel AI SDK](https://sdk.vercel.ai/docs)
+   ```bash
+   sh -ci "$(curl -fsSL https://raw.githubusercontent.com/onflow/flow-cli/master/install.sh)"
+   flow version
+   ```
+
+2. Provide credentials for the deployment account:
+
+   ```bash
+   export FLOW_TESTNET_ADDRESS=0xYourTestnetAddress
+   export FLOW_TESTNET_PRIVATE_KEY=your-private-key-hex
+   ```
+
+   The emulator account uses Flow CLI defaults and does not require extra configuration.
+
+3. Deploy the contracts:
+
+   ```bash
+   # Local emulator
+   flow emulator start --logs --contracts --persist --simple > /tmp/flow.log &
+   flow deploy --network emulator
+
+   # Flow testnet
+   flow deploy --network testnet
+   ```
+
+4. Register the oracle updater and create a vault:
+
+   ```bash
+   # Grant your oracle account permission to push updates
+   flow transactions send cadence/transactions/register_oracle_updater.cdc \
+     --network testnet \
+     --signer testnet-admin \
+     --arg Address:0xOracleAccount
+
+   # Create a vault and seed it with FLOW (values are UFix64, e.g. 100.0)
+   flow transactions send cadence/transactions/create_vault.cdc \
+     --network testnet \
+     --signer testnet-admin \
+     --arg UFix64:6.0 \
+     --arg UFix64:100.0 \
+     --arg Address:0xRedCross
+
+   flow transactions send cadence/transactions/deposit.cdc \
+     --network testnet \
+     --signer testnet-admin \
+     --arg UInt64:1 \
+     --arg UFix64:500.0
+   ```
+
+   > ℹ️ Run the `register_oracle_updater` transaction from the same account that deployed `EarthquakeOracle`.
+
+5. When the oracle worker observes a qualifying earthquake, have it submit the update transaction:
+
+   ```bash
+   flow transactions send cadence/transactions/update_oracle.cdc \
+     --network testnet \
+     --signer oracle-account \
+     --arg UFix64:6.2 \
+     --arg String:"Tokyo, Japan" \
+     --arg String:"<sha256 payload hash>"
+   ```
+
+### Useful scripts
+
+- `cadence/scripts/get_vault_details.cdc` – fetch vault metadata.
+- `cadence/scripts/get_donation_history.cdc` – list all donations emitted on-chain.
+- `cadence/scripts/get_latest_oracle_data.cdc` – inspect the latest oracle update.
+- `cadence/scripts/get_eligible_vaults.cdc` – compute which vaults qualify for an incoming disaster.
+
+These helpers allow the Next.js dashboard and oracle worker to swap the local JSON store for true on-chain data when you are ready to integrate Flow.
 
 ---
 
-## 👥 Team
+## Flow integration roadmap
 
-Built by **[Your Name]** for Forte Hacks 2025
+The contracts are intentionally lightweight to highlight the workflow described in the PRD.
 
----
+1. **`DisasterVault.cdc`** exposes helper functions for creating vaults, depositing FLOW, and triggering donations when the oracle signals a qualifying earthquake.
+2. **`EarthquakeOracle.cdc`** stores the latest verified earthquake magnitude/location and emits events for downstream actions.
+3. **`DisasterActions.cdc`** sketches three Flow Actions (`CreateVaultAction`, `MonitorDisastersAction`, and `AutoDonateAction`) so the workflow can be automated via scheduled transactions.
 
-## 📄 License
+To hook the UI and oracle into Flow:
 
-MIT License - Built for Forte Hacks 2025
-
----
-
-## 🙏 Acknowledgments
-
-- Flow team for the amazing Forte upgrade
-- USGS for free earthquake data
-- OpenAI for AI analysis capabilities
-- All disaster relief organizations worldwide
+- Replace the placeholder `createVault` / `getVaultStatus` functions in `web/lib/flow.ts` with FCL transactions and scripts.
+- Expand `oracle/src/index.ts` to sign and submit `EarthquakeOracle.updateData` transactions (e.g., using the Flow CLI service account or a custodial key).
+- Configure a scheduled transaction on Flow testnet that runs `MonitorDisastersAction` every six hours, calling into the vault contract to execute `autoDonate` when thresholds are met.
 
 ---
 
-**Built with ❤️ on Flow Blockchain**
+## Testing
 
-**#ForteHacks #FlowBlockchain #DisasterRelief**
+Automated tests are not yet wired up. The cadence contracts were written to be compatible with the Flow emulator, and the UI can be exercised locally with `pnpm dev`.
+
+Recommended next steps:
+
+- Add Cadence unit tests with `flow test`.
+- Integrate Playwright or Cypress smoke tests for the dashboard once FCL interactions are connected.
+
+---
+
+## License
+
+MIT © 2024 DisasterVault team
