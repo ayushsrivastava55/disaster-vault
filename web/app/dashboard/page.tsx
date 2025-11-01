@@ -4,6 +4,9 @@ export const metadata = {
   title: "Dashboard · DisasterVault"
 }
 
+// Force dynamic rendering to avoid build-time errors with blockchain features
+export const dynamic = 'force-dynamic'
+
 export default function DashboardPage() {
   return (
     <section className="py-12">

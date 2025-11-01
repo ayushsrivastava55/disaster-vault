@@ -1,11 +1,11 @@
-pub contract EarthquakeOracle {
-    pub event DataUpdated(magnitude: UFix64, location: String, timestamp: UFix64)
+access(all) contract EarthquakeOracle {
+    access(all) event DataUpdated(magnitude: UFix64, location: String, timestamp: UFix64)
 
-    pub struct LatestData {
-        pub let magnitude: UFix64
-        pub let location: String
-        pub let timestamp: UFix64
-        pub let dataHash: String
+    access(all) struct LatestData {
+        access(all) let magnitude: UFix64
+        access(all) let location: String
+        access(all) let timestamp: UFix64
+        access(all) let dataHash: String
 
         init(magnitude: UFix64, location: String, timestamp: UFix64, dataHash: String) {
             self.magnitude = magnitude
@@ -16,20 +16,20 @@ pub contract EarthquakeOracle {
     }
 
     access(self) var authorizedUpdater: Address?
-    pub var latest: LatestData?
+    access(all) var latest: LatestData?
 
-    pub fun registerUpdater(account: Address) {
+    access(all) fun registerUpdater(account: Address) {
         pre {
             self.authorizedUpdater == nil || self.authorizedUpdater == account: "Updater already registered"
-        }
+        };
         self.authorizedUpdater = account
     }
 
-    pub fun updateData(magnitude: UFix64, location: String, dataHash: String, signer: Address) {
+    access(all) fun updateData(magnitude: UFix64, location: String, dataHash: String, signer: Address) {
         pre {
             self.authorizedUpdater != nil: "No updater registered"
             self.authorizedUpdater == signer: "Unauthorized updater"
-        }
+        };
 
         let timestamp = getCurrentBlock().timestamp
         self.latest = LatestData(
@@ -41,7 +41,7 @@ pub contract EarthquakeOracle {
         emit DataUpdated(magnitude: magnitude, location: location, timestamp: timestamp)
     }
 
-    pub fun getLatest(): LatestData? {
+    access(all) fun getLatest(): LatestData? {
         return self.latest
     }
 

@@ -1,5 +1,5 @@
-import DisasterVault from 0xDisasterVault
+import DisasterVault from 0xcb6448da23dc7fa5
 
-pub fun main(vaultId: UInt64): DisasterVault.VaultDetails {
+access(all) fun main(vaultId: UInt64): DisasterVault.VaultDetails {
     return DisasterVault.getVaultDetails(vaultId: vaultId)
 }

@@ -1,5 +1,5 @@
-import EarthquakeOracle from 0xEarthquakeOracle
+import EarthquakeOracle from 0xcb6448da23dc7fa5
 
-pub fun main(): EarthquakeOracle.LatestData? {
+access(all) fun main(): EarthquakeOracle.LatestData? {
     return EarthquakeOracle.getLatest()
 }

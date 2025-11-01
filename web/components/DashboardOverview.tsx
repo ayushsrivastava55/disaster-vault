@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { Card, CardDescription, CardTitle } from "./ui/card"
-import { fetchRecentEarthquakes, getVaultStatus } from "../lib/flow"
+import { fetchRecentEarthquakes, getVaultStatus } from "../lib/server-data"
 
 export async function DashboardOverview() {
   const [vault, earthquakes] = await Promise.all([getVaultStatus(), fetchRecentEarthquakes()])
